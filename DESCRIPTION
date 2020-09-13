@@ -1,0 +1,22 @@
+Package: seaMassValidation
+Type: Package
+Title: Spike-in dataset validation scripts for seaMass
+Version: 1.0.1.13
+Authors@R: as.person(c(
+    "Andrew Dowsey <andrew.dowsey@bristol.ac.uk> [aut, cre]",
+    "Alexander Phillips <a.m.phillips@liverpool.ac.uk> [ctb]"
+  ))
+Description: Spike-in dataset validation scripts for seaMass
+License: Apache v2
+Encoding: UTF-8
+LazyData: true
+Depends: R (>= 4.0.2)
+biocViews:
+Imports: 
+    data.table (>= 1.13.0),
+    MSstats (== 3.20.2),
+    R.utils (>= 2.10.1)
+DevPackage:
+    biospi/seaMass (== 1.0.1.13),
+    statOmics/MSqRob MSqRob (== 0.7.7)
+RoxygenNote: 7.1.1

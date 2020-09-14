@@ -12,7 +12,7 @@ itraq <- function() {
 
   library(seaMass)
 
-  input <- c("UItraqFPA.PP", "UItraqSFA.PP", "UItraqOA.PP")
+  input <- c("UItraqSFA.PP", "UItraqOA.PP")
   files <- file.path(system.file(input, package = "seaMassValidation"), "PeptideSummary.txt.bz2")
 
   funcs <- list(

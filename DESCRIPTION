@@ -14,9 +14,9 @@ Depends: R (>= 3.6.0)
 Imports: 
     data.table (>= 1.13.0),
     R.utils (>= 2.10.1),
-    seaMass,
-    MSstats,
-    MSqRob
+    seaMass (== 1.0.1.13),
+    MSstats (== 3.21.2),
+    MSqRob (== 0.7.7)
 Remotes:
     biospi/seaMass,
     MeenaChoi/MSstats,

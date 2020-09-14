@@ -4,7 +4,7 @@
 \alias{itraq}
 \title{iTraq}
 \usage{
-itraq()
+itraq(path = ".", schedule = schedule_local())
 }
 \description{
 Blah.

@@ -23,14 +23,14 @@ itraq <- function(path = ".", schedule = schedule_local()) {
   files <- file.path(system.file(input, package = "seaMassValidation"), "PeptideSummary.txt.bz2")
 
   funcs <- list(
-    default = function(file) import_ProteinPilot(file),
-    dpt = function(file) import_ProteinPilot(file, use.discordant.peptide.type = T),
-    ni = function(file) import_ProteinPilot(file, use.no.itraq = T),
-    ws = function(file) import_ProteinPilot(file, use.weak.signal = T),
-    sp = function(file) import_ProteinPilot(file, use.shared.peptides = T),
-    dpt_sp = function(file) import_ProteinPilot(file, use.discordant.peptide.type = T, use.shared.peptides = T),
-    dpt_sp_ni = function(file) import_ProteinPilot(file, use.discordant.peptide.type = T, use.shared.peptides = T, use.no.itraq = T),
-    dpt_sp_ni_ws = function(file) import_ProteinPilot(file, use.discordant.peptide.type = T, use.shared.peptides = T, use.no.itraq = T, use.weak.signal = T)
+    default = function(file) seaMass::import_ProteinPilot(file),
+    dpt = function(file) seaMass::import_ProteinPilot(file, use.discordant.peptide.type = T),
+    ni = function(file) seaMass::import_ProteinPilot(file, use.no.itraq = T),
+    ws = function(file) seaMass::import_ProteinPilot(file, use.weak.signal = T),
+    sp = function(file) seaMass::import_ProteinPilot(file, use.shared.peptides = T),
+    dpt_sp = function(file) seaMass::import_ProteinPilot(file, use.discordant.peptide.type = T, use.shared.peptides = T),
+    dpt_sp_ni = function(file) seaMass::import_ProteinPilot(file, use.discordant.peptide.type = T, use.shared.peptides = T, use.no.itraq = T),
+    dpt_sp_ni_ws = function(file) seaMass::import_ProteinPilot(file, use.discordant.peptide.type = T, use.shared.peptides = T, use.no.itraq = T, use.weak.signal = T)
   )
 
   for (file in files) {
@@ -45,13 +45,13 @@ itraq <- function(path = ".", schedule = schedule_local()) {
         data.design$Condition <- factor(c("A", "A", "B", "B", "A", "A", "B", "B"))
         data.design$Sample <- factor(c("A1", "A2", "B1", "B2", "A3", "A4", "B3", "B4"))
 
-        fit.sigma <- seaMass_sigma(
+        fit.sigma <- seaMass::seaMass_sigma(
           data, data.design, run = F, path = file.path(path, paste0(basename(dirname(file)), ".", names(funcs)[i], ".", j)),
           norm.groups = "_RAT",
           control = sigma_control(random.seed = j, norm.model = "median", schedule = schedule)
         )
 
-        fit.delta <- seaMass_delta(fit.sigma)
+        fit.delta <- seaMass::seaMass_delta(fit.sigma)
 
         run(fit.sigma)
       }

@@ -8,7 +8,7 @@ itraq <- function() {
 
   #FullpooledRunA
 
-  setwd("/mnt/storage/home/ad16243/bc3/Scratch/seaMass/")
+  #setwd("/mnt/storage/home/ad16243/bc3/Scratch/seaMass/")
 
   library(seaMass)
 

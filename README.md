@@ -9,10 +9,10 @@ Please install the R package directly from our Github repository. To do this you
 install.packages("devtools")
 ```
 
-Then to install seaMass, or upgrade to the latest version, simply run:
+Then to install seaMassValidation, or upgrade to the latest version, simply run:
 
 ```
 devtools::install_github("biospi/seaMassValidation", dependencies = TRUE)
 ```
 
-To upgrade to the latest version of seaMassValidation, simply run this line again.
+This will also install seaMass, MSstats and MSqRob. To upgrade to the latest version of seaMassValidation, simply run this line again.

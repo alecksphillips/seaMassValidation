@@ -10,7 +10,7 @@ Description: Spike-in dataset validation scripts for seaMass
 License: Apache v2
 Encoding: UTF-8
 LazyData: true
-Depends: R (>= 4.0.2)
+Depends: R (>= 3.6.0)
 biocViews:
 Imports: 
     data.table (>= 1.13.0),

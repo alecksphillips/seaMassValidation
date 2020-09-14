@@ -4,11 +4,18 @@
 #'
 #' @import data.table
 #' @export
-itraq <- function() {
+itraq <- function(path = ".", schedule = schedule_local()) {
 
-  #FullpooledRunA
-
-  #setwd("/mnt/storage/home/ad16243/bc3/Scratch/seaMass/")
+  # path <- "/mnt/storage/home/ad16243/bc3/Scratch/seaMass"
+  #
+  # schedule <- schedule_pbs(
+  #   submit.prefix = "ssh bluecrystalp3.acrc.bris.ac.uk /newhome/ad16243/Scratch/seaMass/",
+  #   q = "veryshort",
+  #   walltime = "12:00:00",
+  #   ppn = 16,
+  #   mem = "64000m",
+  #   M = "ad16243@bristol.ac.uk"
+  # )
 
   library(seaMass)
 
@@ -39,20 +46,9 @@ itraq <- function() {
         data.design$Sample <- factor(c("A1", "A2", "B1", "B2", "A3", "A4", "B3", "B4"))
 
         fit.sigma <- seaMass_sigma(
-          data, data.design, run = F, path = file.path("/mnt/storage/home/ad16243/bc3/Scratch/seaMass", paste0(basename(dirname(file)), ".", names(funcs)[i], ".", j)),
+          data, data.design, run = F, path = file.path(path, paste0(basename(dirname(file)), ".", names(funcs)[i], ".", j)),
           norm.groups = "_RAT",
-          control = sigma_control(
-            random.seed = j,
-            norm.model = "median",
-            schedule = schedule_pbs(
-              submit.prefix = "ssh bluecrystalp3.acrc.bris.ac.uk /newhome/ad16243/Scratch/seaMass/",
-              q = "veryshort",
-              walltime = "12:00:00",
-              ppn = 16,
-              mem = "64000m",
-              M = "ad16243@bristol.ac.uk"
-            )
-          )
+          control = sigma_control(random.seed = j, norm.model = "median", schedule = schedule)
         )
 
         fit.delta <- seaMass_delta(fit.sigma)
@@ -62,19 +58,16 @@ itraq <- function() {
     }
   }
 
-
-  results <- c("UItraqFPA.PP.default.1", "UItraqFPA.PP.default.2", "UItraqFPA.PP.default.3", "UItraqFPA.PP.dpt.1", "UItraqFPA.PP.dpt.2", "UItraqFPA.PP.dpt.3")
-  results <- c("UItraqFPA.PP.default.1", "UItraqFPA.PP.dpt.1", "UItraqFPA.PP.ni.2", "UItraqFPA.PP.sp.1", "UItraqFPA.PP.ws.1")
-  results <- c("UItraqFPA.PP.dpt.1", "UItraqFPA.PP.dpt.2", "UItraqFPA.PP.dpt.3", "UItraqFPA.PP.dpt_sp.2", "UItraqFPA.PP.dpt_sp.3")
-  results <- c("UItraqFPA.PP.dpt_sp.2", "UItraqFPA.PP.dpt_sp.3", "UItraqFPA.PP.dpt_sp_ni.2", "UItraqFPA.PP.dpt_sp_ni.3")
-  results <- c("UItraqFPA.PP.dpt_sp.2", "UItraqFPA.PP.dpt_sp.3", "UItraqFPA.PP.dpt_sp_ni_.2", "UItraqFPA.PP.dpt_sp_ni.3")
-  data.fdr <- lapply(results, function(name) add_seaMass_spikein_truth(standardised_group_deviations_fdr(open_delta(open_sigma(name)))))
-  names(data.fdr) <- results
+  # results <- c("UItraqFPA.PP.default.1", "UItraqFPA.PP.default.2", "UItraqFPA.PP.default.3", "UItraqFPA.PP.dpt.1", "UItraqFPA.PP.dpt.2", "UItraqFPA.PP.dpt.3")
+  # results <- c("UItraqFPA.PP.default.1", "UItraqFPA.PP.dpt.1", "UItraqFPA.PP.ni.2", "UItraqFPA.PP.sp.1", "UItraqFPA.PP.ws.1")
+  # results <- c("UItraqFPA.PP.dpt.1", "UItraqFPA.PP.dpt.2", "UItraqFPA.PP.dpt.3", "UItraqFPA.PP.dpt_sp.2", "UItraqFPA.PP.dpt_sp.3")
+  # results <- c("UItraqFPA.PP.dpt_sp.2", "UItraqFPA.PP.dpt_sp.3", "UItraqFPA.PP.dpt_sp_ni.2", "UItraqFPA.PP.dpt_sp_ni.3")
+  # results <- c("UItraqFPA.PP.dpt_sp.2", "UItraqFPA.PP.dpt_sp.3", "UItraqFPA.PP.dpt_sp_ni_.2", "UItraqFPA.PP.dpt_sp_ni.3")
+  # data.fdr <- lapply(results, function(name) add_seaMass_spikein_truth(standardised_group_deviations_fdr(open_delta(open_sigma(name)))))
+  # names(data.fdr) <- results
 
   # add ground truth and plot precision-recall curve
-  plot_pr(data.fdr, y.max=0.2)
-
-
+  # plot_pr(data.fdr, y.max=0.2)
 }
 
 

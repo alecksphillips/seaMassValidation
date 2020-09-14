@@ -15,8 +15,8 @@ biocViews:
 Imports: 
     data.table (>= 1.13.0),
     R.utils (>= 2.10.1)
-DevPackage:
-    MeenaChoi/MSstats (== 3.21.2),
-    biospi/seaMass (== 1.0.1.13),
-    statOmics/MSqRob MSqRob (== 0.7.7)
+Remotes:
+    biospi/seaMass,
+    MeenaChoi/MSstats,
+    statOmics/MSqRob
 RoxygenNote: 7.1.1

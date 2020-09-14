@@ -19,7 +19,7 @@ itraq <- function(path = ".", schedule = schedule_local()) {
 
   library(seaMass)
 
-  input <- c("UItraqSFA.PP", "UItraqOA.PP")
+  input <- c("UItraqFPA.PP", "UItraqSFA.PP", "UItraqOA.PP")
   files <- file.path(system.file(input, package = "seaMassValidation"), "PeptideSummary.txt.bz2")
 
   funcs <- list(

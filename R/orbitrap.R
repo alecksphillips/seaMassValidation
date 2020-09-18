@@ -339,7 +339,8 @@ orbitrap <- function() {
       proteinGroups[, Group := factor(Group, levels = unique(Group))]
     
       if (normalize){
-        exposures <- proteinGroups[, expos := median(logIntensity, na.rm = T), keyby = "Run"]
+        normGroups <- proteinGroups[grepl("_RAT$", Group)]
+        exposures <- normGroups[, .(expos = median(logIntensity, na.rm = T)), keyby = "Run"]
         exposures[, expos := expos - mean(expos)]
         proteinGroups[exposures, logIntensity := logIntensity - expos, on = "Run"]
       }
@@ -404,7 +405,7 @@ orbitrap <- function() {
     "MaxQuant-t-test n=none LFQ" = readRDS("MaxQuant_noNorm_LFQ.rds")
     
   ), plot.fdr = T, legend.nrow = 2)
-  ggplot2::ggsave("msstats_comparison.pdf", width = 12, height = 6)
+  ggplot2::ggsave("maxquant_comparison.pdf", width = 12, height = 6)
   
 
   ### SEAMASS ########################################################################

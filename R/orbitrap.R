@@ -298,19 +298,114 @@ orbitrap <- function() {
     #"MSstats n=ms rm=0.5 pid=razor" = readRDS("MSstats_msStatNorm_rmMissing0.5_razor.rds")
   ), plot.fdr = T, legend.nrow = 2)
   ggplot2::ggsave("msstats_comparison.pdf", width = 12, height = 6)
+  
+  ### MaxQuant ########################################################################    
+  # Function to run t-tests and BH on maxquant's protein quants
+  execute_MaxQuantTTests <- function(name, normalize = T, intensityColumn = 'Intensity') {
+    
+    if (!file.exists(paste(name, "rds", sep = "."))) {
+      
+      #evidence <- read.csv("input4v4/evidence.txt", sep ='\t')
+      annotation <- data.frame(
+        Raw.file = c("VH_210319_A1-6", "VH_210319_A3-6", "VH_210319_A5-3", "VH_210319_A6-8", "VH_210319_B2-4", "VH_210319_B3-5", "VH_210319_B4-5", "VH_210319_B5-3", "VH_210319_C1-3", "VH_210319_C2-3", "VH_210319_C3-3", "VH_210319_C4-3"),
+        Condition = c("A", "A", "A", "A", "B", "B", "B", "B", "C", "C", "C", "C"),
+        BioReplicate = c("A1","A3", "A5", "A6", "B2", "B3", "B4", "B5", "C1", "C2", "C3", "C4"),
+        IsotopeLabelType = rep_len(c("L"),12),
+        Run = c("A1-6", "A3-6", "A5-3" ,"A6-8" ,"B2-4" ,"B3-5", "B4-5", "B5-3", "C1-3" ,"C2-3" ,"C3-3" ,"C4-3")
+      )
+      proteinGroups <- fread("input4v4/proteinGroups.txt", sep ='\t')
+      
+      proteinGroups[, Group := factor(`Protein IDs`, levels = unique(`Protein IDs`))]
+      proteinGroups[, Use := T]
+    
+      #Filter
+      proteinGroups[`Only identified by site` == "+", Use := F]
+      proteinGroups[`Reverse` == "+", Use := F]
+      proteinGroups[`Potential contaminant` == "+", Use := F]
+      
+      proteinGroups <- proteinGroups[Use == T,]
+      
+      colNamesKeep <- names(proteinGroups)[grepl(paste0("^", intensityColumn, " "), names(proteinGroups))]
+      colNamesKeep <- c("Group", colNamesKeep)
+      
+      proteinGroups <- proteinGroups[,..colNamesKeep]
+      proteinGroups <- melt(proteinGroups, id.vars = "Group", variable.name = "Run", value.name = "Intensity")
+      proteinGroups[, Run := stringr::str_replace(Run, paste0(intensityColumn," "), "")]
+      proteinGroups[Intensity == 0, Intensity := NA]
+      proteinGroups[, logIntensity := log2(Intensity)]
+      proteinGroups <- merge(proteinGroups, annotation, by = "Run")
+      
+      proteinGroups <- proteinGroups[Condition != "C",]
+      proteinGroups[, Group := factor(Group, levels = unique(Group))]
+    
+      if (normalize){
+        exposures <- proteinGroups[, expos := median(logIntensity, na.rm = T), keyby = "Run"]
+        exposures[, expos := expos - mean(expos)]
+        proteinGroups[exposures, logIntensity := logIntensity - expos, on = "Run"]
+      }
+        
+      ##c("Group", "m", "s", "df", "tvalue", "pvalue", "qvalue", "signif")
+      results <- proteinGroups[,{
+        result <- list(
+          m = as.double(NA),
+          s = as.double(NA),
+          df = as.double(NA),
+          tvalue = as.double(NA),
+          pvalue = as.double(NA)
+        )
+        
+        tryCatch({
+          fit <- t.test(
+            .SD[Condition == "A",logIntensity],
+            .SD[Condition == "B",logIntensity],
+            var.equal=T
+          )
+          
+          result <- list(
+            m = fit$estimate[2] - fit$estimate[1],
+            s = fit$stderr,
+            df = fit$parameter,
+            tvalue = fit$statistic,
+            pvalue = fit$p.value
+          )}, error = function(e) {
+            warning("Couldn't perform t.test, returning NA")
+          })
+        
+        result = result
+      }, by = Group]
+      
+      results[, qvalue := p.adjust(pvalue, method = "BH")]
+    
+      results <- seaMass::add_seaMass_spikein_truth(results)
+      
+      saveRDS(results, paste(name, "rds", sep = "."))
+    }
+    else {
+      #Read previous results
+      results <- readRDS(paste(name, "rds", sep = "."))
+    }
+    
+    g <- seaMass::plot_volcano(results, x.col = "m", y.col = "qvalue", stdev.col = "s")
+    ggsave(paste0(name, ".pdf"))
+    
+    return(g)
+    
+  }
 
+  execute_MaxQuantTTests("MaxQuant_groundTruthNorm", normalize = T)
+  execute_MaxQuantTTests("MaxQuant_noNorm", normalize = F)
+  execute_MaxQuantTTests("MaxQuant_groundTruthNorm_LFQ", normalize = T, intensityColumn = "LFQ intensity")
+  execute_MaxQuantTTests("MaxQuant_noNorm_LFQ", normalize = F, intensityColumn = "LFQ intensity")
 
-
-
-
-
-
-
-
-
-
-
-
+  plot_pr(list(
+    "MaxQuant-t-test n=mt" = readRDS("MaxQuant_groundTruthNorm.rds"),
+    "MaxQuant-t-test n=none" = readRDS("MaxQuant_noNorm.rds"),
+    "MaxQuant-t-test n=mt LFQ" = readRDS("MaxQuant_groundTruthNorm_LFQ.rds"),
+    "MaxQuant-t-test n=none LFQ" = readRDS("MaxQuant_noNorm_LFQ.rds")
+    
+  ), plot.fdr = T, legend.nrow = 2)
+  ggplot2::ggsave("msstats_comparison.pdf", width = 12, height = 6)
+  
 
   ### SEAMASS ########################################################################
 

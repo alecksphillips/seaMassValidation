@@ -8,6 +8,7 @@ orbitrap <- function() {
   library(MSqRob)
   library(MSnbase)
   library(seaMass)
+  library(MSstats)
   library(ggplot2)
   library(data.table)
   setwd("~/gonzales1/seaMass/unwin_orbitrap/")
@@ -27,6 +28,10 @@ orbitrap <- function() {
   for (assay in assays.rm) DT.raw[, (grep(paste0("^.* ", assay), colnames(DT.raw))) := NULL]
   fwrite(DT.raw, "input4v4/proteinGroups.txt", sep = "\t", quote = F)
 
+  DT.raw <- fread("input/evidence.txt")
+  for (assay in assays.rm) DT.raw <- DT.raw[Experiment != assay,]
+  fwrite(DT.raw, "input4v4/evidence.txt", sep = "\t", quote = F)
+  
 
   ### Import MaxQuant data with MSqRob's own protein grouping ######################################################
 
@@ -138,7 +143,161 @@ orbitrap <- function() {
   ), plot.fdr = F, legend.nrow = 1)
   ggplot2::ggsave("msqrob__msqrob.pdf", width = 12, height = 6)
 
+  ### MSstats ########################################################################
+  # Function to run msstats on maxquant's output
+  execute_MSstats <- function(name, normalize = T, rm.missing = 1.0, useLeadingRazorProteins = F) {
+    
+    if (!file.exists(paste(name, "rds", sep = "."))) {
+      
+      evidence <- read.csv("input4v4/evidence.txt", sep ='\t')
+      #annotation <- data.frame(
+      #  Raw.file = c("VH_210319_A1-5","VH_210319_A1-6", "VH_210319_A1-7", "VH_210319_A2-4", "VH_210319_A3-5", "VH_210319_A3-6", "VH_210319_A4-5", "VH_210319_A4-6","VH_210319_A5-3", "VH_210319_A6-8", "VH_210319_B1-3", "VH_210319_B2-4", "VH_210319_B3-5", "VH_210319_B3-6", "VH_210319_B4-5", "VH_210319_B4-6", "VH_210319_B5-3", "VH_210319_B6-3", "VH_210319_C1-3", "VH_210319_C2-3", "VH_210319_C3-3", "VH_210319_C4-3"),
+      #  Condition = c("A", "A", "A", "A", "A", "A", "A", "A", "A", "A", "B", "B", "B", "B", "B", "B", "B", "B", "C", "C", "C", "C"),
+      #  BioReplicate = c("A1", "A1", "A1", "A2", "A3", "A3", "A4", "A4", "A5", "A6", "B1", "B2", "B3", "B3", "B4", "B4", "B5", "B6", "C1", "C2", "C3", "C4"),
+      #  IsotopeLabelType = rep_len(c("L"),22),
+      #  Run = c("A1-5" ,"A1-6" ,"A1-7" ,"A2-4" ,"A3-5" ,"A3-6" ,"A4-5" ,"A4-6" ,"A5-3" ,"A6-8" ,"B1-3" ,"B2-4" ,"B3-5" ,"B3-6" ,"B4-5" ,"B4-6" ,"B5-3" ,"B6-3" ,"C1-3" ,"C2-3" ,"C3-3" ,"C4-3")
+      # )
+      annotation <- data.frame(
+        Raw.file = c("VH_210319_A1-6", "VH_210319_A3-6", "VH_210319_A5-3", "VH_210319_A6-8", "VH_210319_B2-4", "VH_210319_B3-5", "VH_210319_B4-5", "VH_210319_B5-3", "VH_210319_C1-3", "VH_210319_C2-3", "VH_210319_C3-3", "VH_210319_C4-3"),
+        Condition = c("A", "A", "A", "A", "B", "B", "B", "B", "C", "C", "C", "C"),
+        BioReplicate = c("A1","A3", "A5", "A6", "B2", "B3", "B4", "B5", "C1", "C2", "C3", "C4"),
+        IsotopeLabelType = rep_len(c("L"),12),
+        Run = c("A1-6", "A3-6", "A5-3" ,"A6-8" ,"B2-4" ,"B3-5", "B4-5", "B5-3", "C1-3" ,"C2-3" ,"C3-3" ,"C4-3")
+      )
+      proteinGroups <- read.csv("input4v4/proteinGroups.txt", sep ='\t')
+    
+      
+      if (useLeadingRazorProteins) {
+        inputData <- MaxQtoMSstatsFormat(
+          evidence = evidence, annotation = annotation, proteinGroups = proteinGroups,
+          proteinID = 'Leading.razor.protein'
+        )
+        
+      } else {
+        inputData <- MaxQtoMSstatsFormat(
+          evidence = evidence, annotation = annotation, proteinGroups = proteinGroups
+        )
+      }
+    
+      QuantData <- dataProcess(inputData)
+    
+      exposure_correction_MSstats <- function(data, normalisation.proteins = levels(data$Protein)) {
+        DT.ProcessedData <- as.data.table(data$ProcessedData)
+        DT.RunlevelData <- as.data.table(data$RunlevelData)
+      
+        # compute exposures
+        DT.exposure <- DT.ProcessedData[, .(exposure = median(ABUNDANCE[PROTEIN %in% normalisation.proteins], na.rm = T)), keyby = RUN]
+        DT.exposure[,exposure := exposure - mean(exposure, na.rm = T)]
+      
+        DT.exposure.intensity <- DT.ProcessedData[, .(exposure = median(log2(INTENSITY[PROTEIN %in% normalisation.proteins]), na.rm = T)), keyby = RUN]
+        DT.exposure.intensity[,exposure := exposure - mean(exposure, na.rm = T)]
+      
+        DT.Runlevel.exposure <- DT.RunlevelData[, .(exposure = median(LogIntensities[Protein %in% normalisation.proteins], na.rm = T)), keyby = RUN]
+        DT.Runlevel.exposure[,exposure := exposure - mean(exposure, na.rm = T)]
+      
+        # apply exposure
+        DT.ProcessedData[DT.exposure, ABUNDANCE := ABUNDANCE - exposure, on = "RUN"]
+        DT.ProcessedData[DT.exposure, INTENSITY := INTENSITY * 2^(-exposure), on = "RUN"]
+        DT.RunlevelData[DT.Runlevel.exposure, LogIntensities := LogIntensities - exposure, on = "RUN"]
+      
+        data$ProcessedData <- setDF(DT.ProcessedData)
+        data$RunlevelData <- setDF(DT.RunlevelData)
+        return(data)
+      }
+    
+      de_MSstats <- function(data, rm.missing = 1.0) {
+        DT <- as.data.table(data)
+      
+        #DT[, .(Group = Protein, issue, MissingPercentage, ImputationPercentage, m = log2FC, s = SE, df = DF, t = Tvalue, pvalue, qvalue = adj.pvalue)]
+      
+        DT <- DT[, .(
+          Group = Protein,
+          m = log2FC,
+          s = SE,
+          df = DF,
+          tvalue = Tvalue,
+          pvalue = pvalue,
+          qvalue = adj.pvalue,
+          MissingPercentage
+        )]
+        #DT$pvalue[is.na(DT$pvalue)] <- 1
+        #DT$p.value[is.nan(DT$FDR)] <- 1
+        #DT$qvalue[DT$pvalue == 0] <- 0
+        #DT$qvalue[is.nan(DT$qvalue)] <- 1
+      
+        DT[, abs.m := abs(m)]
+        setorder(DT, pvalue, -abs.m, MissingPercentage, na.last = T)
+        DT[, abs.m := NULL]
+      
+        DT <- DT[MissingPercentage <= rm.missing,]
+        
+        DT[, qvalue := p.adjust(pvalue, method = "BH")]
+        setorder(DT, qvalue)
+      
+        data <- setDF(DT)
+        return(data)
+      }
+    
+      #Each row corresponds to a comparison being made, columns are conditions
+      comparison <- matrix(c(-1,1,0), nrow=1)
+      row.names(comparison) <- "B-A"
+      
+      normProteins <- levels(QuantData$ProcessedData$PROTEIN)
+      normProteins <- normProteins[grepl("_RAT$",normProteins)]
+      
+      if (normalize){
+        QuantData <- exposure_correction_MSstats(QuantData, normalisation.proteins = normProteins)
+      }
+      
+      # Tests for differentially abundant proteins with models:
+      testResultOneComparison <- groupComparison(contrast.matrix=comparison, data=QuantData)
+      
+      results <- de_MSstats(testResultOneComparison$ComparisonResult, rm.missing = rm.missing)
+      results <- seaMass::add_seaMass_spikein_truth(results)
+      
+      saveRDS(results, paste(name, "rds", sep = "."))
+    }
+    else {
+      #Read previous results
+      results <- readRDS(paste(name, "rds", sep = "."))
+    }
+    
+    g <- seaMass::plot_volcano(results, x.col = "m", y.col = "qvalue", stdev.col = "s")
+    ggsave(paste0(name, ".pdf"))
+  
+    return(g)
+  
+  }
 
+  execute_MSstats("MSstats_truthNorm", normalize = T, rm.missing = 1.0)
+  execute_MSstats("MSstats_msStatNorm", normalize = F, rm.missing = 1.0)
+  execute_MSstats("MSstats_truthNorm_rmMissing", normalize = T, rm.missing = 0.0)
+  execute_MSstats("MSstats_msStatNorm_rmMissing", normalize = F, rm.missing = 0.0)
+  execute_MSstats("MSstats_truthNorm_rmMissing0.5", normalize = T, rm.missing = 0.5)
+  execute_MSstats("MSstats_msStatNorm_rmMissing0.5", normalize = F, rm.missing = 0.5)
+  
+  execute_MSstats("MSstats_truthNorm_razor", normalize = T, rm.missing = 1.0, useLeadingRazorProteins = T)
+  execute_MSstats("MSstats_msStatNorm_razor", normalize = F, rm.missing = 1.0, useLeadingRazorProteins = T)
+  execute_MSstats("MSstats_truthNorm_rmMissing_razor", normalize = T, rm.missing = 0.0, useLeadingRazorProteins = T)
+  execute_MSstats("MSstats_msStatNorm_rmMissing_razor", normalize = F, rm.missing = 0.0, useLeadingRazorProteins = T)
+  execute_MSstats("MSstats_truthNorm_rmMissing0.5_razor", normalize = T, rm.missing = 0.5, useLeadingRazorProteins = T)
+  execute_MSstats("MSstats_msStatNorm_rmMissing0.5_razor", normalize = F, rm.missing = 0.5, useLeadingRazorProteins = T)
+  
+  plot_pr(list(
+    "MSstats n=mt rm=F pid=proteins" = readRDS("MSstats_truthNorm.rds"),
+    "MSstats n=ms rm=F pid=proteins" = readRDS("MSstats_msStatNorm.rds"),
+    #"MSstats n=mt rm=T pid=proteins" = readRDS("MSstats_truthNorm_rmMissing.rds"),
+    #"MSstats n=ms rm=T pid=proteins" = readRDS("MSstats_msStatNorm_rmMissing.rds"),
+    #"MSstats n=mt rm=0.5 pid=proteins" = readRDS("MSstats_truthNorm_rmMissing0.5.rds")
+    #"MSstats n=ms rm=0.5 pid=proteins" = readRDS("MSstats_msStatNorm_rmMissing0.5.rds")
+    "MSstats n=mt rm=F pid=razor" = readRDS("MSstats_truthNorm_razor.rds"),
+    "MSstats n=ms rm=F pid=razor" = readRDS("MSstats_msStatNorm_razor.rds")
+    #"MSstats n=mt rm=T pid=razor" = readRDS("MSstats_truthNorm_rmMissing_razor.rds"),
+    #"MSstats n=ms rm=T pid=razor" = readRDS("MSstats_msStatNorm_rmMissing_razor.rds"),
+    #"MSstats n=mt rm=0.5 pid=razor" = readRDS("MSstats_truthNorm_rmMissing0.5_razor.rds"),
+    #"MSstats n=ms rm=0.5 pid=razor" = readRDS("MSstats_msStatNorm_rmMissing0.5_razor.rds")
+  ), plot.fdr = T, legend.nrow = 2)
+  ggplot2::ggsave("msstats_comparison.pdf", width = 12, height = 6)
 
 
 
